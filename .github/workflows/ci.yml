@@ -1,0 +1,45 @@
+name: CI - Spark Streamlit App
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t spark-streamlit-app .
+
+      - name: Run container
+        run: docker run -d -p 8501:8501 --name app spark-streamlit-app
+
+      - name: Wait for app
+        run: sleep 20
+
+      - name: Health check
+        run: curl --fail http://localhost:8501 || exit 1
+
+      # Slack success
+      - name: Notify Slack Success
+        if: success()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{"text":"✅ CI Passed"}' \
+          ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      # Slack failure
+      - name: Notify Slack Failure
+        if: failure()
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+          --data '{"text":"❌ CI Failed"}' \
+          ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Cleanup
+        if: always()
+        run: docker stop app && docker rm app
