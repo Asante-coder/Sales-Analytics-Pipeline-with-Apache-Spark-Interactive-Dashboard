@@ -1,5 +1,5 @@
 # Base image with Python
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 # Set environment variables for Spark
 ENV SPARK_VERSION=3.5.1
@@ -11,14 +11,17 @@ ENV PATH=$SPARK_HOME/bin:$PATH
 RUN apt-get update && apt-get install -y \
     curl \
     bash \
-    openjdk-17-jdk \
+    default-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
+# Add this after the RUN apt-get install step
+ENV JAVA_HOME=/usr/lib/jvm/default-java
+
 # Install Apache Spark
-RUN curl -L https://downloads.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
+# Install Apache Spark from Archive
+RUN curl -L https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION}.tgz \
     | tar -xz -C /opt/ \
     && mv /opt/spark-${SPARK_VERSION}-bin-hadoop${HADOOP_VERSION} $SPARK_HOME
-
 # Set working directory
 WORKDIR /app
 

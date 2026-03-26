@@ -1,0 +1,21 @@
+order_id,product,category,price,quantity,country,date
+1001,Laptop,Electronics,1200,2,Ghana,2025-01-15
+1002,Phone,Electronics,800,3,Nigeria,2025-01-16
+1003,Headphones,Electronics,150,5,Ghana,2025-01-17
+1004,Desk,Furniture,300,1,Kenya,2025-01-18
+1005,Chair,Furniture,120,4,Ghana,2025-01-19
+1006,Pen,Stationery,2,50,Nigeria,2025-01-20
+1007,Notebook,Stationery,5,30,Ghana,2025-01-21
+1008,Monitor,Electronics,400,2,South Africa,2025-01-22
+1009,Mouse,Electronics,25,10,Ghana,2025-01-23
+1010,Keyboard,Electronics,45,6,Kenya,2025-01-24
+1011,Table,Furniture,250,2,Ghana,2025-02-01
+1012,Printer,Electronics,350,1,Nigeria,2025-02-02
+1013,Bag,Accessories,60,8,Ghana,2025-02-03
+1014,Shoes,Accessories,90,5,South Africa,2025-02-04
+1015,Water Bottle,Accessories,15,20,Ghana,2025-02-05
+1016,Backpack,Accessories,70,3,Kenya,2025-02-06
+1017,Tablet,Electronics,600,2,Ghana,2025-02-07
+1018,Lamp,Furniture,80,4,Nigeria,2025-02-08
+1019,Stapler,Stationery,10,15,Ghana,2025-02-09
+1020,Camera,Electronics,500,1,South Africa,2025-02-10
