@@ -46,21 +46,60 @@ jobs:
       - name: Health check
         run: curl --fail http://localhost:8501 || exit 1
 
-      # Slack notifications
-      - name: Notify Slack Success
-        if: success()
-        env:
-          SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      - name: Generate Summary Diagram
         run: |
-          curl -X POST -H 'Content-type: application/json' \
-          --data '{"text":"✅ CI Passed (Native Run)"}' \
-          "$SLACK_URL"
+          echo "### 📊 Pipeline Visualization" >> $GITHUB_STEP_SUMMARY
+          echo " \`\`\`mermaid" >> $GITHUB_STEP_SUMMARY
+          echo " graph LR;" >> $GITHUB_STEP_SUMMARY
+          echo "     A[Source Code] --> B(Setup Java/Python);" >> $GITHUB_STEP_SUMMARY
+          echo "     B --> C{PySpark Logic};" >> $GITHUB_STEP_SUMMARY
+          echo "     C --> D[Streamlit UI];" >> $GITHUB_STEP_SUMMARY
+          echo "     D --> E((Slack Alert));" >> $GITHUB_STEP_SUMMARY
+          echo " \`\`\` " >> $GITHUB_STEP_SUMMARY
 
-      - name: Notify Slack Failure
-        if: failure()
+      # # Slack notifications
+      # - name: Notify Slack Success
+      #   if: success()
+      #   env:
+      #     SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #   run: |
+      #     curl -X POST -H 'Content-type: application/json' \
+      #     --data '{"text":"✅ CI Passed (Native Run)"}' \
+      #     "$SLACK_URL"
+
+      # - name: Notify Slack Failure
+      #   if: failure()
+      #   env:
+      #     SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #   run: |
+      #     curl -X POST -H 'Content-type: application/json' \
+      #     --data '{"text":"❌ CI Failed (Native Run)"}' \
+      #     "$SLACK_URL"
+
+# 7. Final Notification (Covers both Success and Failure)
+      - name: Notify Slack
+        if: always()
         env:
           SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          STATUS: ${{ job.status }}
         run: |
+          # Set the emoji based on success or failure
+          if [ "$STATUS" = "success" ]; then
+            ICON="✅ *CI Passed (Native Run)*"
+          else
+            ICON="❌ *CI Failed (Native Run)*"
+          fi
+
+          # Construct the detailed message
+          MSG_TEXT="$ICON
+          *repo:* ${{ github.repository }}
+          *message:* ${{ github.event.head_commit.message }}
+          *commit:* ${GITHUB_SHA::8}
+          *author:* ${{ github.event.head_commit.author.name }} <${{ github.event.head_commit.author.email }}>
+          *eventName:* ${{ github.event_name }}
+          *ref:* ${{ github.ref }}"
+
+          # Send to Slack
           curl -X POST -H 'Content-type: application/json' \
-          --data '{"text":"❌ CI Failed (Native Run)"}' \
+          --data "{\"text\":\"$MSG_TEXT\"}" \
           "$SLACK_URL"
