@@ -47,7 +47,7 @@ jobs:
         run: curl --fail http://localhost:8501 || exit 1
 
       # Slack notifications
-     - name: Notify Slack Success
+      - name: Notify Slack Success
         if: success()
         env:
           SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
