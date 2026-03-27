@@ -47,16 +47,20 @@ jobs:
         run: curl --fail http://localhost:8501 || exit 1
 
       # Slack notifications
-      - name: Notify Slack Success
+     - name: Notify Slack Success
         if: success()
+        env:
+          SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data '{"text":"✅ CI Passed (Native Run)"}' \
-          ${{ secrets.SLACK_WEBHOOK_URL }}
+          "$SLACK_URL"
 
       - name: Notify Slack Failure
         if: failure()
+        env:
+          SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           curl -X POST -H 'Content-type: application/json' \
           --data '{"text":"❌ CI Failed (Native Run)"}' \
-          ${{ secrets.SLACK_WEBHOOK_URL }}
+          "$SLACK_URL"
