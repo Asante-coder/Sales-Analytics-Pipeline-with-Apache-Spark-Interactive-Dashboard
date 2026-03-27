@@ -1,45 +1,62 @@
-name: CI - Spark Streamlit App
+name: CI - Spark Streamlit App 
 
 on:
   push:
     branches: ["main"]
 
 jobs:
-  docker-test:
+  native-test:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t spark-streamlit-app .
+      # 1. Setup Java (Required for PySpark)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-      - name: Run container
-        run: docker run -d -p 8501:8501 --name app spark-streamlit-app
+      # 2. Setup Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip' # Speeds up future runs
 
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 4. Start the app in the background
+      - name: Run Streamlit app
+        run: |
+          nohup streamlit run app.py --server.port 8501 --server.address 0.0.0.0 &
+          # 'nohup' and '&' keep it running in the background while we test it
+
+      # 5. Wait for Spark & Streamlit to initialize
       - name: Wait for app
-        run: sleep 20
+        run: sleep 30 
 
+      # 6. Health check
       - name: Health check
         run: curl --fail http://localhost:8501 || exit 1
 
-      # Slack success
+      # Slack notifications
       - name: Notify Slack Success
         if: success()
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          --data '{"text":"✅ CI Passed"}' \
+          --data '{"text":"✅ CI Passed (Native Run)"}' \
           ${{ secrets.SLACK_WEBHOOK_URL }}
 
-      # Slack failure
       - name: Notify Slack Failure
         if: failure()
         run: |
           curl -X POST -H 'Content-type: application/json' \
-          --data '{"text":"❌ CI Failed"}' \
+          --data '{"text":"❌ CI Failed (Native Run)"}' \
           ${{ secrets.SLACK_WEBHOOK_URL }}
-
-      - name: Cleanup
-        if: always()
-        run: docker stop app && docker rm app
