@@ -1,105 +1,62 @@
-name: CI - Spark Streamlit App 
+name: CI - Spark Sales Pipeline
 
 on:
   push:
     branches: ["main"]
 
 jobs:
-  native-test:
+  # Module 1: Environment Setup & Dependency Install
+  setup:
     runs-on: ubuntu-latest
-
+    outputs:
+      repo_name: ${{ github.repository }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # 1. Setup Java (Required for PySpark)
+      - uses: actions/checkout@v4
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      # 2. Setup Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip' # Speeds up future runs
 
-      # 3. Install dependencies
+  # Module 2: Run Spark App & Health Check
+  # This "needs" setup to finish first
+  test_app:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run Streamlit & Spark
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      # 4. Start the app in the background
-      - name: Run Streamlit app
-        run: |
-          nohup streamlit run app.py --server.port 8501 --server.address 0.0.0.0 &
-          # 'nohup' and '&' keep it running in the background while we test it
-
-      # 5. Wait for Spark & Streamlit to initialize
-      - name: Wait for app
-        run: sleep 30 
-
-      # 6. Health check
+          nohup streamlit run app.py --server.port 8501 &
+          sleep 30
       - name: Health check
         run: curl --fail http://localhost:8501 || exit 1
 
-      - name: Generate Summary Diagram
-        run: |
-          echo "### 📊 Pipeline Visualization" >> $GITHUB_STEP_SUMMARY
-          echo " \`\`\`mermaid" >> $GITHUB_STEP_SUMMARY
-          echo " graph LR;" >> $GITHUB_STEP_SUMMARY
-          echo "     A[Source Code] --> B(Setup Java/Python);" >> $GITHUB_STEP_SUMMARY
-          echo "     B --> C{PySpark Logic};" >> $GITHUB_STEP_SUMMARY
-          echo "     C --> D[Streamlit UI];" >> $GITHUB_STEP_SUMMARY
-          echo "     D --> E((Slack Alert));" >> $GITHUB_STEP_SUMMARY
-          echo " \`\`\` " >> $GITHUB_STEP_SUMMARY
-
-      # # Slack notifications
-      # - name: Notify Slack Success
-      #   if: success()
-      #   env:
-      #     SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #   run: |
-      #     curl -X POST -H 'Content-type: application/json' \
-      #     --data '{"text":"✅ CI Passed (Native Run)"}' \
-      #     "$SLACK_URL"
-
-      # - name: Notify Slack Failure
-      #   if: failure()
-      #   env:
-      #     SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      #   run: |
-      #     curl -X POST -H 'Content-type: application/json' \
-      #     --data '{"text":"❌ CI Failed (Native Run)"}' \
-      #     "$SLACK_URL"
-
-# 7. Final Notification (Covers both Success and Failure)
-      - name: Notify Slack
-        if: always()
+  # Module 3: Slack Notification
+  # This runs regardless of whether the test passed or failed
+  notify:
+    needs: test_app
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Detailed Slack Alert
         env:
           SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          STATUS: ${{ job.status }}
         run: |
-          # Set the emoji based on success or failure
-          if [ "$STATUS" = "success" ]; then
-            ICON="✅ *CI Passed (Native Run)*"
-          else
-            ICON="❌ *CI Failed (Native Run)*"
-          fi
-
-          # Construct the detailed message
-          MSG_TEXT="$ICON
-          *repo:* ${{ github.repository }}
-          *message:* ${{ github.event.head_commit.message }}
-          *commit:* ${GITHUB_SHA::8}
-          *author:* ${{ github.event.head_commit.author.name }} <${{ github.event.head_commit.author.email }}>
-          *eventName:* ${{ github.event_name }}
-          *ref:* ${{ github.ref }}"
-
-          # Send to Slack
+          STATUS="${{ needs.test_app.result }}"
+          [[ "$STATUS" == "success" ]] && ICON="✅" || ICON="❌"
+          
+          MSG_TEXT="$ICON *CI $STATUS*
+          *Repo:* ${{ github.repository }}
+          *Commit:* ${GITHUB_SHA::8}
+          *Author:* ${{ github.event.head_commit.author.name }}
+          *Event:* ${{ github.event_name }}"
+          
           curl -X POST -H 'Content-type: application/json' \
-          --data "{\"text\":\"$MSG_TEXT\"}" \
-          "$SLACK_URL"
+          --data "{\"text\":\"$MSG_TEXT\"}" "$SLACK_URL"
